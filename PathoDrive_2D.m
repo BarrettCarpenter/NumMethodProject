@@ -13,15 +13,15 @@ global NpX NpY Nsteps
 % set simulation constants
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%% Global domain constants (apply everywhere) %%%%%%%%%%%%%%%%%
-NpX = 50;     %number of plants in the X-direction
-NpY = 50;     %number of plants in the Y-direction
+NpX = 5;     %number of plants in the X-direction
+NpY = 5;     %number of plants in the Y-direction
 Nsteps = length(T); %number of time steps for integration
 
 %%%%%%%%%%%%%%%%%%%%%%%%% Global plant parameters %%%%%%%%%%%%%%%%%%%%%%%%%
 LpX = 1;      %X-direction physical length of a plant in meters
 LpY = 1;      %Y-direction physical length of a plant in meters
 %normalization factor for a plant ('final' susceptible plant surface area in cm^2)
-A   = 0.5; %5000/10000 to account for alpha being in m^2     
+A   = 5000;     
 %initial average size of a individual plant in the population 
 % (=model after 30 days with constant temp of 15C + 1 for initial berry size)
 P_i_ave  = 1.33*30*(-0.35968+0.10789*15-0.00214*15*15)*30+1; 
@@ -53,7 +53,7 @@ for i=1:NpX
         cnt = i+(j-1)*NpX; %counter to vectorize vine 
         vine(cnt).X = i*LpX-0.5; %x-position of the center of a vine in meters
         vine(cnt).Y = j*LpY-0.5; %y-position of the center of a vine in meters
-        vine(cnt).P(1) = P_i_ave+P_i_std*randn; %initial population size (random around the average)
+        vine(cnt).P(1) = (P_i_ave+P_i_std*randn); %initial population size (random around the average)
         vine(cnt).B(1) = 1;        %initial size of the berry population (assumed small (1cm^2))
         vine(cnt).S(1) = vine(cnt).P(1)/A;    %initial size of the susceptible population (normalized)
         vine(cnt).L(1) = 0;        %initial fraction of the population that is latent
@@ -71,48 +71,41 @@ vine(RandV).L(1) = 0.25^2/4*pi/A;
 
 % call the pathogen function
 tic
-[vine]=PathogenGrowth_2D(vine,beta_max,mu_L_min,mu_I,A,eta,kappa,xi,Gamma,...
+[vine,cost,timeDetect]=PathogenGrowth_2D(vine,beta_max,mu_L_min,mu_I,A,eta,kappa,xi,Gamma,...
     alpha,T,U,V,tspan);
 toc 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % plot results
-figure
-plot
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 %Calculate stats for entire domain at each time step
-% B_ave = mean([vine.B],2);
-P_ave = mean([vine.P],2);
 S_ave = mean([vine.S],2);
+%INSERT YOUR CODE HERE to fill in the rest...
 L_ave = mean([vine.L],2);
 I_ave = mean([vine.I],2);
 R_ave = mean([vine.R],2);
-% E_ave = mean([vine.E],2);
-% F_ave = mean([vine.F],2);
+P_ave = mean([vine.P],2);
+B_ave = mean([vine.B],2);
+E_ave = mean([vine.E],2);
+F_ave = mean([vine.F],2);
 
 %%%%%%%%%%%%%%%%%%%%% Plot the average of the field %%%%%%%%%%%%%%%%%%%%%%%
 FSize = 14; %fontsize for plots
 figure;plot(tspan,S_ave,'-k','LineWidth',2);
-legend({'Susceptible'},'Location','NorthWest');
 xlabel('time (days)','Fontsize',FSize);
 ylabel('Population (fraction of initial)','Fontsize',FSize)
 title('average epidemic')
 set(gca,'Fontsize',FSize,'Xlim',[0 61]); 
 box on;grid on
-hold on
-% Plot Population Line
-plot(tspan,P_ave,'-k','LineWidth',2);
-legend({'Population'},'Location','NorthWest');
-% Plot Latentcy Line
-plot(tspan,L_ave,'-k','LineWidth',2);
-legend({'Latent'},'Location','NorthWest');
-% Plot Infected Line
-plot(tspan,I_ave,'-k','LineWidth',2);
-legend({'Infected'},'Location','NorthWest');
-% Plot Recovered line
-plot(tspan,P_ave,'-k','LineWidth',2);
-legend({'Recovered/Removed'},'Location','NorthWest');
-% Plot 
+hold on;
+plot(tspan,L_ave);
+plot(tspan,I_ave)
+plot(tspan,R_ave);
+plot(tspan,P_ave/A);
+plot(tspan,B_ave/A);
+plot(tspan,E_ave);
+plot(tspan,F_ave);
+legend('Susceptible','Latent','Infected','Removed','Population','Berries','External','Fungal Spores','Location','NorthWest');
 
 %INSERT YOUR CODE HERE to add plotting of other elements and optional
 %things like movies

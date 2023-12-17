@@ -29,7 +29,7 @@
 %
 % and the time input (idx) should be an integer for the iteration number
 % Note that E is not calculated by the function (only integrated in time)
-function [dydt] = SLIRPE_model(idx,y,e,mu_L,p)
+function [dydt] = SLIRPE_model(idx,y0,e,mu_L,p)
     %assign parameters
     beta_max = p{1};
     mu_I     = p{2}; 
@@ -45,19 +45,19 @@ function [dydt] = SLIRPE_model(idx,y,e,mu_L,p)
     alpha    = p{12};
 
     %assign variables
-    B = y(1);
-    P = y(2);
-    S = y(3);
-    L = y(4);
-    I = y(5);
-    R = y(6);
-    E = y(7);
-    F = y(8);
+    B = y0(1);
+    P = y0(2);
+    S = y0(3);
+    L = y0(4);
+    I = y0(5);
+    R = y0(6);
+    E = y0(7);
+    F = y0(8);
 
     %calculated parameters
     if(ceil(idx)==floor(idx)) %when we are at an interger step
         T_used = T(idx);
-        day_used = day(idx);
+        day_used = day(idx)+30;
         mu_L_used = mu_L(idx);
         m_used = Windspd(idx);
     else %when we are at a half step (for rk4)
@@ -68,39 +68,30 @@ function [dydt] = SLIRPE_model(idx,y,e,mu_L,p)
         m_used = 0.5*(Windspd(idx)+Windspd(idx+1));
     end
     beta = beta_max*Sall_temp_effect(T_used); %pathogen growth rate
-    
+    TE = -0.35968+0.10789*T_used-0.00214*(T_used^2);
+    dPldt = (1.33*day_used)*TE;
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    dydt(1) = (0.1724*B-0.0000212*B*B)*T_used; %change in amount of berries  %YOUR CODE GOES HERE for the Berries function
-    dydt(2) = (1.33*(day_used+30))*T_used+dydt(1); %change in P  %YOUR CODE GOES HERE for our P function
-    % Do we need to change TE to T_used? Im gonna switch it but we may not
-    % need to
-
+    dydt(1) = (0.1724*B - 0.0000212*(B^2))*TE; %YOUR CODE GOES HERE for our Pb (Berries) function
+    dydt(2) = dydt(1) + dPldt; %YOUR CODE GOES HERE for our P function
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     %disease variables
     dydt(3) = -beta*S*I+dydt(2)/A;              %change in S
     dydt(4) = beta*S*I-mu_L_used*L+e;           %change in L
-    dydt(5) = mu_L_used*L-mu_I*I;               %change in I
+    dydt(5) = (mu_L_used*L)-mu_I*I;               %change in I
     dydt(6) = mu_I*I;                           %change in R
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %YOUR CODE GOES HERE for our E function    
-    % The following is transferred over from the Project Description
-    % document for easier viewing. REFER TO GAUSSIANPLUMEDEP.m file for more info.
-    % F is source strength
-    % u_s = 0.025; %m/s settling velocity
-    % d_s = sqrt(S); %Deposition length scale
-    % x = X*cos(WindDir)+Y*sin(WindDir);
-    % y = -X*sin(WindDir)+Y*cos(WindDir);
-    % e = exp(-0.05x(XPos))*(F/(2*pi*sigy*M))*exp((-y^2)/(2*sigy^2))*(u_s*d_l)
-    e = GaussianPlumeDep(X,Y,WindSpeed,WindDir,dep_area);
+    %YOUR CODE GOES HERE for our E function
     dydt(7) = e;
-
+    
+    
+    Rfnum = exp((kappa * m_used) + xi);
+    Rfdenom = eta*(1+exp((kappa*m_used)+xi));
+    Rf = Rfnum/Rfdenom;
     if(I==0)%spore production shouldn't start before infection (quirk of exponential curve fit)
         dydt(8) = 0;
     else
-        %YOUR CODE GOES HERE for our F function
-        dydt(8) = Gamma*exp(alpha*I*A) - F*R_frac
-
+        dydt(8) = (Gamma * exp(alpha*(I*A/10000))) - (F*Rf);
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end

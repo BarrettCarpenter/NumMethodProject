@@ -41,13 +41,16 @@
 % tspan (days to simulate array);
 % output: S,L,I,R,P,E,time (vector of simulation times), and B
 
-function [vine] = PathogenGrowth_2D(vine,beta_max,mu_L_target,mu_I,A,...
+function [vine,cost,timeDetect] = PathogenGrowth_2D(vine,beta_max,mu_L_target,mu_I,A,...
     eta,kappa,xi,Gamma,alpha,T,U,V,tspan)
+
+totDrones = 0;
+detect = false;
 
 %declare global variables
 global NpX NpY Nsteps
 
-% set parameters in a cell array
+% set parameters in a cell array 
 p{1} = beta_max; %(max rate of new infections)
 p{2} = 1/mu_I;   %(inverse length of the infectious period in days)
 p{3} = T;        %(temperature in C)
@@ -62,7 +65,7 @@ p{11}= Gamma;    %spore production multiple
 p{12}= alpha;   %spore production 2nd factor
 
 % declare function handles
-odefun = @(t,y,e,g) SLIRPE_model(t,y,e,g,p);
+odefun = @(t,y0,e,g) SLIRPE_model(t,y0,e,g,p);
 
 % loop over timesteps (starting at 2)
 for t=2:Nsteps
@@ -113,20 +116,16 @@ for t=2:Nsteps
             % integrate using a time integration method from class
             %%%% INSERT YOUR CODE HERE for time integration, note for
             %%%% odefun to work as given above your call needs to look like:
-                % We will use RK4
-                % Is our RK4 set to the middle of the time step or the front
-                % end?
+            %
             %[y] = TimeInt(odefun,t,dt,y0,DepFlux_sum(cnt),vine(cnt).mu_L);
             %
             %NOTE: recognize that you are only integrating 1 time step!
             %your routine can be more general than that but recognize that
             %this point is in the middle of a time loop!
-            x_array = RK4(ode,x_i,t)
-            % ode: SLIRPE_model
-            % x_i:
-            % t = 0:30:30;
-
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            
+            y = TimeInt(odefun,t,dt,y0,DepFlux_sum(cnt),vine(cnt).mu_L);
+
 
             % set outputs
             vine(cnt).B(t) = y(1);
@@ -155,7 +154,53 @@ for t=2:Nsteps
     %%%        RECOMMENDED LOCATION FOR YOUR SCOUTING ROUTINE           %%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    ScoutDetect = 0;
+    ScoutSpeed = 0.5; %m/s setting to max for now, can use for loop for optimization
+    NumPlants = NpX*NpY;
+    day = int8(t)/24;
+    if isinteger(day)
+    NumDrones = 1;
+    ScoutPos = randperm(NumPlants);
+    SX=0;
+    SY=0;
+    ScTime=0;
+    for i = 1:NumPlants
+        ScDistance = sqrt((SX-vine(ScoutPos(i)).X)^2+(SY-vine(ScoutPos(i)).Y)^2);
+        %update time and pos
+        SX = vine(ScoutPos(i)).X;
+        SY = vine(ScoutPos(i)).Y;
+        ScTime = ScTime + ScDistance/ScoutSpeed;
+
+        if ScTime<= 3600 %We can still run the drone
+            InfectSize = vine(ScoutPos(i)).L(t)*A;
+            ScoutSize = max([(40*ScoutSpeed)^2/4*pi pi]);
+            if InfectSize >= ScoutSize
+                ScoutDetect = 1; %true; % We found it
+                return
+            end
+        else
+            ScoutDetect = 0; %false; % We didnt found it
+            break
+        end
+    end
+    % cost = Cost(ScoutDetect,NumDrones);
+
+
+
+    % if isinteger(day) && ~detect
+    %     [drones,detect] = scouting(vine,t);
+    %     totDrones = totDrones + drones;
+    %     if detect
+    %         timeDetect = idx;
+    %         cost = totDrones * timeDetect*24 + (timeDetect-10)*1000;
+    %     end
+    % end
+    %     cost = 0;
+    %     timeDetect = 0;
+    
+    end
+    cost = Cost(ScoutDetect,NumDrones)
+
 
 end
 
-end
